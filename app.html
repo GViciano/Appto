@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Appto">
+<title>Appto · ¿Es apto para mí?</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#f6f7f5;--card:#fff;--text:#1c2321;--muted:#66706c;--line:#e3e6e3;
+  --brand:#0f766e;--brand-2:#ccfbf1;
+  --bad:#b91c1c;--bad-bg:#fde8e8;--warn:#a16207;--warn-bg:#fef3c7;
+  --ok:#15803d;--ok-bg:#dcfce7;--unk:#475569;--unk-bg:#e8edf3;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1312;--card:#181e1c;--text:#e8ecea;--muted:#9aa5a0;--line:#2a3330;
+  --brand:#2dd4bf;--brand-2:#123b36;
+  --bad:#f87171;--bad-bg:#3a1717;--warn:#fbbf24;--warn-bg:#382c0d;
+  --ok:#4ade80;--ok-bg:#12301d;--unk:#a5b4c7;--unk-bg:#1f2731;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+h1{font-size:1.25rem;margin:0}
+.icon-btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:8px 12px;font-size:.95rem;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+#reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:0}
+#reader video{border-radius:12px}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:14px;font-size:1.05rem;font-weight:600;cursor:pointer;background:var(--brand);color:#fff}
+@media (prefers-color-scheme: dark){.btn{color:#04201d}}
+.btn.secondary{background:var(--brand-2);color:var(--text)}
+.row{display:flex;gap:8px;margin-top:10px}
+.row input{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:1rem}
+.row button{width:auto;padding:12px 16px}
+.muted{color:var(--muted);font-size:.88rem}
+.product{display:flex;gap:12px;align-items:center}
+.product img{width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line);flex:none}
+.product h2{font-size:1.1rem;margin:0 0 2px}
+.banner{border-radius:12px;padding:14px;margin:14px 0 10px;font-weight:700;font-size:1.1rem;display:flex;gap:10px;align-items:center}
+.s-bad{background:var(--bad-bg);color:var(--bad)}
+.s-warn{background:var(--warn-bg);color:var(--warn)}
+.s-ok{background:var(--ok-bg);color:var(--ok)}
+.s-unk{background:var(--unk-bg);color:var(--unk)}
+.check{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+.pill{flex:none;font-size:.78rem;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap}
+.check b{display:block}
+.why{font-size:.86rem;color:var(--muted);word-break:break-word}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--muted);font-size:.9rem}
+.ingr{font-size:.88rem;color:var(--muted);margin-top:6px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.opts label{display:flex;gap:8px;align-items:center;padding:6px 0;font-size:.95rem}
+.opts input{width:20px;height:20px;accent-color:var(--brand)}
+.section-t{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 4px}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);cursor:pointer}
+.hist li:first-child{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.hidden{display:none!important}
+.spinner{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite;margin:8px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Appto</h1>
+    <button class="icon-btn" id="btnSettings" aria-label="Qué vigilar">⚙︎ Qué vigilar</button>
+  </header>
+
+  <!-- Ajustes -->
+  <section class="card hidden" id="settings">
+    <div style="font-weight:700">¿Qué quieres vigilar?</div>
+    <div class="section-t">Intolerancias</div>
+    <div class="opts" id="optsIntol"></div>
+    <div class="section-t">Alérgenos (14 de la UE)</div>
+    <div class="opts" id="optsAlerg"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.92rem">
+      <input type="checkbox" id="strictSugar" style="width:20px;height:20px;accent-color:var(--brand)">
+      Fructosa estricta: avisar también por azúcar/sacarosa (intolerancia hereditaria)
+    </label>
+    <button class="btn" style="margin-top:14px" id="btnSaveSettings">Guardar</button>
+  </section>
+
+  <!-- Escáner -->
+  <section class="card">
+    <div id="reader"></div>
+    <button class="btn" id="btnScan">📷 Escanear código de barras</button>
+    <div class="row">
+      <input id="manual" inputmode="numeric" pattern="[0-9]*" placeholder="o escribe el código (EAN)">
+      <button class="btn secondary" id="btnManual">Buscar</button>
+    </div>
+    <div class="muted" id="watching" style="margin-top:10px"></div>
+  </section>
+
+  <!-- Resultado -->
+  <section class="card hidden" id="result"></section>
+
+  <!-- Historial -->
+  <section class="card hidden" id="historyCard">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <b>Últimos escaneos</b>
+      <button class="icon-btn" id="btnClearHist" style="padding:4px 10px;font-size:.85rem">Borrar</button>
+    </div>
+    <ul class="hist" id="hist"></ul>
+  </section>
+
+  <p class="muted">Datos de <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, una base de datos colaborativa: puede estar incompleta o desactualizada. Ante una alergia o intolerancia seria, confirma siempre en la etiqueta del envase.</p>
+</div>
+
+<script>
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Expresión con límites de palabra que funcionan con guiones/":" de las etiquetas OFF
+const rx = words => new RegExp('(^|[^a-z0-9])(' + words.join('|') + ')(?=$|[^a-z0-9])', 'g');
+
+/* ---------- Reglas ----------
+  Cada regla puede usar:
+   - allergen: etiqueta OFF de alérgeno (contiene) / trazas (puede contener)
+   - free: etiquetas "sin X" que lo descartan
+   - strong: palabras que indican que lo contiene
+   - weak: palabras que indican que probablemente lo contiene / revisar
+   - strip: frases a ignorar antes de buscar (falsos positivos)
+*/
+const RULES = {
+  gluten: {
+    name: 'Gluten', group: 'intol', def: true,
+    allergen: 'en:gluten',
+    free: ['en:no-gluten', 'en:gluten-free', 'es:sin-gluten', 'en:crossed-grain-symbol'],
+    strip: ['trigo sarraceno', 'buckwheat', 'sin gluten', 'gluten free', 'gluten-free', 'no-gluten', 'sarrasin'],
+    strong: ['gluten','trigo','wheat','cebada','barley','centeno','rye','espelta','spelt','kamut','malta','malt','extracto de malta','seitan','semola','couscous','cuscus','triticale','bulgur','farro'],
+    weak: ['avena','oats?','almidon modificado','harina']
+  },
+  fructosa: {
+    name: 'Fructosa', group: 'intol', def: true,
+    strong: ['fructosa','fructose','jarabe de glucosa[- ]?fructosa','glucose[- ]fructose[- ]syrup','fructose[- ]glucose[- ]syrup','isoglucosa','jarabe de maiz','corn syrup','high fructose','miel','honey','agave','azucar invertido','invert sugar','jarabe invertido','sirope de agave','concentrado de zumo','zumo concentrado','fruit juice concentrate','zumo de manzana','zumo de pera','pure de manzana','manzana','pera','mango','datil','dates','uvas? pasas?','raisins?','higos? secos?','fruta deshidratada','fruta confitada','inulina','inulin','fructooligosacaridos','oligofructosa','fos'],
+    weak: ['azucar','sugar','sacarosa','sucrose','azucar moreno','panela','melaza','molasses','sirope','zumo','jugo','fruta','fruit'],
+    strictWeakIsStrong: true // con "fructosa estricta", el azúcar cuenta como "contiene"
+  },
+  sorbitol: {
+    name: 'Sorbitol y polioles', group: 'intol', def: false,
+    strong: ['sorbitol','e[- ]?420','manitol','mannitol','e[- ]?421','isomalt','e[- ]?953','maltitol','e[- ]?965','lactitol','e[- ]?966','xilitol','xylitol','e[- ]?967'],
+    weak: ['eritritol','erythritol','e[- ]?968','edulcorantes?','sweeteners?','polioles','polyols']
+  },
+  lactosa: {
+    name: 'Lactosa', group: 'intol', def: false,
+    allergen: 'en:milk',
+    free: ['en:no-lactose', 'en:lactose-free', 'es:sin-lactosa'],
+    strip: ['sin lactosa','lactose free','lactose-free','no-lactose','leche de coco','leche de almendras?','leche de avena','leche de soja','coconut milk'],
+    strong: ['lactosa','lactose','leche','milk','suero','whey','nata','cream','mantequilla','butter','queso','cheese','yogur','yogurt','lactosuero'],
+    weak: ['caseinato','caseina','casein','proteinas? lacteas?','milk proteins?']
+  },
+  // 14 alérgenos UE (solo por etiquetas OFF + palabras clave básicas)
+  crustaceos: {name:'Crustáceos', group:'alerg', allergen:'en:crustaceans', strong:['gamba','langostino','cangrejo','bogavante','crustaceos?','shrimp','prawn','crab']},
+  huevo:      {name:'Huevo', group:'alerg', allergen:'en:eggs', strong:['huevos?','eggs?','ovoproductos?','clara de huevo','yema']},
+  pescado:    {name:'Pescado', group:'alerg', allergen:'en:fish', strong:['pescado','fish','atun','salmon','anchoa','bacalao','merluza']},
+  cacahuete:  {name:'Cacahuete', group:'alerg', allergen:'en:peanuts', strong:['cacahuetes?','peanuts?','mani']},
+  soja:       {name:'Soja', group:'alerg', allergen:'en:soybeans', strong:['soja','soy','soya','lecitina de soja']},
+  leche:      {name:'Leche (proteína)', group:'alerg', allergen:'en:milk', strip:['leche de coco','leche de almendras?','leche de avena','coconut milk'], strong:['leche','milk','suero','whey','caseina','casein','nata','queso','mantequilla']},
+  frutos:     {name:'Frutos de cáscara', group:'alerg', allergen:'en:nuts', strong:['almendras?','avellanas?','nueces','nuez','anacardos?','pistachos?','pacanas?','macadamias?','nuts','almonds?','hazelnuts?','walnuts?','cashews?']},
+  apio:       {name:'Apio', group:'alerg', allergen:'en:celery', strong:['apio','celery']},
+  mostaza:    {name:'Mostaza', group:'alerg', allergen:'en:mustard', strong:['mostaza','mustard']},
+  sesamo:     {name:'Sésamo', group:'alerg', allergen:'en:sesame-seeds', strong:['sesamo','sesame','tahini','ajonjoli']},
+  sulfitos:   {name:'Sulfitos', group:'alerg', allergen:'en:sulphur-dioxide-and-sulphites', strong:['sulfitos?','sulphites?','sulfites?','anhidrido sulfuroso','metabisulfito','e[- ]?22[0-8]']},
+  altramuz:   {name:'Altramuz', group:'alerg', allergen:'en:lupin', strong:['altramuz','lupin','lupino']},
+  moluscos:   {name:'Moluscos', group:'alerg', allergen:'en:molluscs', strong:['mejillon','almeja','calamar','sepia','pulpo','molluscs?','berberecho']},
+};
+for (const r of Object.values(RULES)){
+  r.strongRx = r.strong ? rx(r.strong) : null;
+  r.weakRx = r.weak ? rx(r.weak) : null;
+}
+
+/* ---------- Ajustes ---------- */
+let settings = store.get('settings', null) || {
+  checks: Object.keys(RULES).filter(k => RULES[k].def),
+  strictSugar: false
+};
+function renderSettings(){
+  const mk = group => Object.entries(RULES).filter(([,r]) => r.group === group).map(([k,r]) =>
+    `<label><input type="checkbox" value="${k}" ${settings.checks.includes(k)?'checked':''}> ${r.name}</label>`).join('');
+  $('#optsIntol').innerHTML = mk('intol');
+  $('#optsAlerg').innerHTML = mk('alerg');
+  $('#strictSugar').checked = settings.strictSugar;
+  $('#watching').textContent = 'Vigilando: ' + (settings.checks.map(k => RULES[k].name).join(', ') || 'nada (pulsa ⚙︎)');
+}
+$('#btnSettings').onclick = () => $('#settings').classList.toggle('hidden');
+$('#btnSaveSettings').onclick = () => {
+  settings.checks = [...document.querySelectorAll('#settings .opts input:checked')].map(i => i.value);
+  settings.strictSugar = $('#strictSugar').checked;
+  store.set('settings', settings);
+  $('#settings').classList.add('hidden');
+  renderSettings();
+  if (lastProduct) showResult(lastProduct);
+};
+
+/* ---------- Análisis ---------- */
+const LEVEL = { bad: 3, warn: 2, unk: 1, ok: 0 };
+function findAll(re, text){
+  if (!re) return [];
+  re.lastIndex = 0;
+  const out = new Set(); let m;
+  while ((m = re.exec(text))) out.add(m[2].replace(/-/g,' '));
+  return [...out];
+}
+function analyze(p, key){
+  const r = RULES[key];
+  const allergens = p.allergens_tags || [];
+  const traces = p.traces_tags || [];
+  const labels = p.labels_tags || [];
+  let text = norm([
+    p.ingredients_text_es, p.ingredients_text,
+    (p.ingredients_tags || []).join(' '),
+  ].filter(Boolean).join(' | '));
+  const hasIngredients = text.trim().length > 0;
+  (r.strip || []).forEach(s => { text = text.split(norm(s)).join(' '); });
+
+  // Las etiquetas OFF de alérgenos mandan
+  if (r.allergen && allergens.includes(r.allergen))
+    return { level:'bad', label:'Contiene', why:'Declarado como alérgeno en el envase.' };
+
+  const strong = findAll(r.strongRx, text);
+  const weak = findAll(r.weakRx, text);
+
+  if (r.free && r.free.some(f => labels.includes(f)) && !strong.length)
+    return { level:'ok', label:'Sin '+r.name.toLowerCase(), why:'Etiquetado como "sin ' + r.name.toLowerCase() + '".' };
+
+  if (strong.length)
+    return { level:'bad', label:'Contiene', why:'Ingredientes: ' + strong.join(', ') };
+
+  if (r.allergen && traces.includes(r.allergen))
+    return { level:'warn', label:'Puede contener', why:'Trazas declaradas en el envase.' };
+
+  if (weak.length){
+    if (key === 'fructosa' && settings.strictSugar)
+      return { level:'bad', label:'Contiene', why:'Azúcar/sacarosa (50% fructosa): ' + weak.join(', ') };
+    return { level:'warn', label:'Revisar', why:'Posible fuente: ' + weak.join(', ') };
+  }
+
+  if (!hasIngredients && !allergens.length)
+    return { level:'unk', label:'Sin datos', why:'No hay lista de ingredientes en la base de datos.' };
+
+  return { level:'ok', label:'No detectado', why:'No aparece en ingredientes ni alérgenos.' };
+}
+
+/* ---------- Consulta a Open Food Facts ---------- */
+const FIELDS = 'code,product_name,product_name_es,brands,image_front_small_url,image_front_url,allergens_tags,traces_tags,labels_tags,ingredients_tags,ingredients_text,ingredients_text_es';
+let lastProduct = null;
+
+async function lookup(code){
+  code = String(code).replace(/\D/g, '');
+  if (!code) return;
+  const res = $('#result');
+  res.classList.remove('hidden');
+  res.innerHTML = `<div class="spinner"></div><div class="muted" style="text-align:center">Buscando ${esc(code)}…</div>`;
+  try{
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${FIELDS}&lc=es`);
+    const j = await r.json();
+    if (j.status !== 1 || !j.product){
+      res.innerHTML = `<div class="banner s-unk">❓ Producto no encontrado</div>
+        <div class="muted">El código ${esc(code)} no está en Open Food Facts. Puedes añadirlo desde su app y ayudar a otros.</div>
+        <p><a href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=${esc(code)}" target="_blank" rel="noopener">Añadir este producto</a></p>`;
+      return;
+    }
+    j.product.code = code;
+    showResult(j.product);
+  }catch(e){
+    res.innerHTML = `<div class="banner s-unk">⚠️ No se pudo conectar</div><div class="muted">Revisa tu conexión e inténtalo de nuevo.</div>`;
+  }
+}
+
+function showResult(p){
+  lastProduct = p;
+  const name = p.product_name_es || p.product_name || 'Producto sin nombre';
+  const results = settings.checks.map(k => ({ key:k, ...analyze(p, k) }))
+    .sort((a,b) => LEVEL[b.level] - LEVEL[a.level]);
+  const worst = results.length ? results[0].level : 'unk';
+  const bad = results.filter(r => r.level === 'bad').map(r => RULES[r.key].name);
+  const warn = results.filter(r => r.level === 'warn').map(r => RULES[r.key].name);
+  const banner = {
+    bad:  `⛔ Contiene: ${bad.join(', ')}`,
+    warn: `⚠️ Revisar: ${warn.join(', ')}`,
+    unk:  `❓ Faltan datos para decidir`,
+    ok:   `✅ Nada de lo que vigilas`
+  }[worst];
+  const ingr = p.ingredients_text_es || p.ingredients_text || '';
+  const img = p.image_front_small_url || p.image_front_url;
+
+  $('#result').innerHTML = `
+    <div class="product">
+      ${img ? `<img src="${esc(img)}" alt="">` : ''}
+      <div><h2>${esc(name)}</h2><div class="muted">${esc(p.brands || '')} · ${esc(p.code)}</div></div>
+    </div>
+    <div class="banner s-${worst}">${esc(banner)}</div>
+    <div>${results.map(r => `
+      <div class="check">
+        <span class="pill s-${r.level}">${esc(r.label)}</span>
+        <div><b>${esc(RULES[r.key].name)}</b><div class="why">${esc(r.why)}</div></div>
+      </div>`).join('') || '<div class="muted">No estás vigilando nada. Pulsa ⚙︎.</div>'}</div>
+    ${ingr ? `<details><summary>Ver ingredientes</summary><div class="ingr">${esc(ingr)}</div></details>` : ''}
+    <p class="muted" style="margin-bottom:0"><a href="https://world.openfoodfacts.org/product/${esc(p.code)}" target="_blank" rel="noopener">Ver ficha en Open Food Facts</a></p>`;
+
+  addHistory({ code:p.code, name, level:worst, t:Date.now() });
+  $('#result').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ---------- Historial ---------- */
+let history = store.get('history', []);
+function addHistory(item){
+  history = [item, ...history.filter(h => h.code !== item.code)].slice(0, 20);
+  store.set('history', history); renderHistory();
+}
+function renderHistory(){
+  $('#historyCard').classList.toggle('hidden', !history.length);
+  const col = { bad:'var(--bad)', warn:'var(--warn)', ok:'var(--ok)', unk:'var(--unk)' };
+  $('#hist').innerHTML = history.map(h => `
+    <li data-code="${esc(h.code)}"><span class="dot" style="background:${col[h.level]}"></span>
+    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.name)}</span>
+    <span class="muted">›</span></li>`).join('');
+}
+$('#hist').onclick = e => { const li = e.target.closest('li'); if (li) lookup(li.dataset.code); };
+$('#btnClearHist').onclick = () => { history = []; store.set('history', history); renderHistory(); };
+
+/* ---------- Escáner ---------- */
+let scanner = null, scanning = false;
+async function startScan(){
+  if (scanning) return stopScan();
+  if (!window.Html5Qrcode){ alert('No se pudo cargar el lector. Revisa la conexión.'); return; }
+  scanner = scanner || new Html5Qrcode('reader', {
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128
+    ],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: false
+  });
+  try{
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: (w, h) => ({ width: Math.floor(w * 0.85), height: Math.floor(Math.min(h, w) * 0.4) }) },
+      async code => {
+        if (navigator.vibrate) navigator.vibrate(80);
+        await stopScan();
+        $('#manual').value = code;
+        lookup(code);
+      },
+      () => {}
+    );
+    scanning = true;
+    $('#btnScan').textContent = '✕ Parar cámara';
+  }catch(e){
+    $('#result').classList.remove('hidden');
+    $('#result').innerHTML = `<div class="banner s-unk">📷 No hay acceso a la cámara</div>
+      <div class="muted">Da permiso de cámara al navegador (la web debe abrirse con https). Mientras, puedes escribir el código a mano.</div>`;
+  }
+}
+async function stopScan(){
+  if (scanner && scanning){ try{ await scanner.stop(); scanner.clear(); }catch{} }
+  scanning = false;
+  $('#btnScan').textContent = '📷 Escanear código de barras';
+}
+$('#btnScan').onclick = startScan;
+$('#btnManual').onclick = () => lookup($('#manual').value);
+$('#manual').addEventListener('keydown', e => { if (e.key === 'Enter') lookup($('#manual').value); });
+
+renderSettings();
+renderHistory();
+</script>
+</body>
+</html>
